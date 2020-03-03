@@ -7,10 +7,14 @@
 //
 
 import UIKit
+//import SystemConfiguration
+//import Foundation
 
 class HolidaysTableViewController: UITableViewController {
-
-    @IBOutlet weak var searchBar: UISearchBar!
+   enum HolidayError:Error{
+        case noDataAvailable
+        case canNotProcessData
+    }
     var listOfHolidays = [HolidayDetail](){
         didSet{
             DispatchQueue.main.async {
@@ -19,6 +23,100 @@ class HolidaysTableViewController: UITableViewController {
             }
         }
     }
+    
+    let URL1="https://calendarific.com/api/v2/holidays?api_key=4d6d6d35d4dce107d7dbc9b003016d07a00f1eaf&country=US&year=2019"
+    var resourceURL = URL(string:"https://calendarific.com/api/v2/holidays?api_key=4d6d6d35d4dce107d7dbc9b003016d07a00f1eaf&country=US&year=2019")
+    let API_KEY="4d6d6d35d4dce107d7dbc9b003016d07a00f1eaf"
+
+
+    
+    func getData(countryCode:String){
+        listOfHolidays=[]
+            let date = Date()
+            let format = DateFormatter()
+            format.dateFormat = "yyyy"
+            let currentYear = format.string(from: date)
+            let resourceString="https://calendarific.com/api/v2/holidays?api_key=\(API_KEY)&country=\(countryCode)&year=\(currentYear)"
+            guard let resourceURL = URL(string: resourceString) else {fatalError()}
+            //self.resourceURL = resourceURL
+        let dataTask = URLSession.shared.dataTask(with: resourceURL) {data, _, _ in
+            guard let jsonData = data else{
+                
+               DispatchQueue.main.async{
+                    let alert1 = UIAlertController(title: "Error", message: "Internet Error", preferredStyle: .alert)
+                    alert1.addAction(UIAlertAction(title:"OK", style:.default,handler:nil))
+                    self.present(alert1, animated: true)
+                }
+                return
+            }
+            do {
+                let decoder = JSONDecoder()
+                let holidaysResponse = try decoder.decode(HolidayResponse.self, from: jsonData)
+                self.listOfHolidays = holidaysResponse.response.holidays
+               
+                
+            } catch{
+                DispatchQueue.main.async{
+                    let alert1 = UIAlertController(title: "Error", message: "Data Cannot be Found", preferredStyle: .alert)
+                    alert1.addAction(UIAlertAction(title:"OK", style:.default,handler:nil))
+                    self.present(alert1, animated: true)
+                }
+            }
+        }
+        dataTask.resume()
+    }
+    
+//    struct HolidayRequest{
+//        let resourceURL:URL
+//        let API_KEY="4d6d6d35d4dce107d7dbc9b003016d07a00f1eaf"
+//
+//        init (countryCode:String){
+//            let date = Date()
+//            let format = DateFormatter()
+//            format.dateFormat = "yyyy"
+//            let currentYear = format.string(from: date)
+//
+//
+//            let resourceString="https://calendarific.com/api/v2/holidays?api_key=\(API_KEY)&country=\(countryCode)&year=\(currentYear)"
+//            guard let resourceURL = URL(string: resourceString) else {fatalError()}
+//            self.resourceURL = resourceURL
+//        }
+        
+           
+//      func getHolidays (completion: @escaping(Result<[HolidayDetail],HolidayError>)-> Void){
+//                let dataTask = URLSession.shared.dataTask(with: resourceURL!) {data, _, _ in
+//                    guard let jsonData = data else{
+//
+//                        DispatchQueue.main.async{
+//                            let alert1 = UIAlertController(title: "Hello", message: "Hello", preferredStyle: .alert)
+//                            alert1.addAction(UIAlertAction(title:"OK", style:.default,handler:nil))
+//                            self.present(alert1, animated: true)
+//                        }
+//
+//                        print("NO DATA")
+//                        completion(.failure(.noDataAvailable))
+//                        return
+//                    }
+//                    do {
+//                        let decoder = JSONDecoder()
+//                        let holidaysResponse = try decoder.decode(HolidayResponse.self, from: jsonData)
+//                        let holidayDetails = holidaysResponse.response.holidays
+//                        print(holidayDetails)
+//                        completion(.success(holidayDetails))
+//                    } catch{
+//                        completion(.failure(.canNotProcessData))
+//                    }
+//                }
+//                 dataTask.resume()
+//            }
+
+       
+    
+
+    var activateAlert=false
+    @IBOutlet weak var searchBar: UISearchBar!
+
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         searchBar.delegate = self
@@ -39,6 +137,12 @@ class HolidaysTableViewController: UITableViewController {
         // self.navigationItem.rightBarButtonItem = self.editButtonItem
     }
 
+    func setActivate(alert:Bool){
+        activateAlert=alert
+    }
+    
+    
+    
     // MARK: - Table view data source
 
     override func numberOfSections(in tableView: UITableView) -> Int {
@@ -78,7 +182,6 @@ class HolidaysTableViewController: UITableViewController {
               
               // set the destVC variables from the selected row
         destVC.cityWeath = (myCurrCell.cellTemp!.text)!
-    
         destVC.cityNa=(myCurrCell.cellName!.text)!
     }
     
@@ -128,18 +231,20 @@ class HolidaysTableViewController: UITableViewController {
     }
     */
 }
-    extension HolidaysTableViewController : UISearchBarDelegate {
+extension HolidaysTableViewController : UISearchBarDelegate {
         func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
             guard let searchBartext = searchBar.text else {return}
-            let holidayRequest = HolidayRequest(countryCode: searchBartext)
-            holidayRequest.getHolidays{[weak self] result in
-                switch result {
-                case .failure(let error):
-                    print(error)
-                case .success(let holidays):
-                    self?.listOfHolidays = holidays
-                }
-            }
+           getData(countryCode: searchBartext)
+           
+//            //holidayRequest.getHolidays{[weak self] result in
+//                switch result {
+//                case .failure(let error):
+//                    print(error)
+//                case .success(let holidays):
+//                    self?.listOfHolidays = holidays
+//                }
+//            }
         }
     }
+
 
